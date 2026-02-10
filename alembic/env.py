@@ -5,7 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 from app.core.db import Base
-from app.models import User  # noqa
+from app.models import User , File , FileShare# noqa
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
