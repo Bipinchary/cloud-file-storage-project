@@ -21,3 +21,16 @@ def generate_presigned_upload_url(
         },
         ExpiresIn=expires_in,
     )
+
+
+def generate_presigned_download_url(
+    *, bucket: str, key: str, expires_in: int = 300
+) -> str:
+    return s3_client.generate_presigned_url(
+        ClientMethod="get_object",
+        Params={
+            "Bucket": bucket,
+            "Key": key,
+        },
+        ExpiresIn=expires_in,
+    )

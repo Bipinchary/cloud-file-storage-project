@@ -1,6 +1,8 @@
 from fastapi import FastAPI , Request , status
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import OperationalError
+from fastapi.exceptions import RequestValidationError
+from sqlalchemy.exc import OperationalError , DataError 
+
 import logging
 import uuid
 
@@ -30,5 +32,32 @@ async def database_exception_handler(request: Request, exc: OperationalError):
             "error": "Service Temporarily Unavailable",
             "message": "We are experiencing technical difficulties. Please try again later.",
             "request_id": request_id
+        }
+    )
+
+@app.exception_handler(DataError)
+async def sqlalchemy_data_error_handler(request: Request, exc: DataError):
+    # We still log the technical details for OURSELVES to see in the terminal
+    print(f"Internal Data Error: {exc}") 
+
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={
+            "error": "Invalid Data",
+            "message": "The information provided is in an incorrect format for our system."
+            
+        }
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # We check if the error is specifically about the file_id
+    # but we give a general, polite message to the user
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={
+            "error": "Invalid Link",
+            "message": "The file ID in the link is incomplete or incorrect.",
+            "suggestion": "Please ensure you are using the full ID provided in your file list."
         }
     )

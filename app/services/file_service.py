@@ -1,8 +1,12 @@
 import uuid
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 
 from app.models import File
-from app.core.aws import generate_presigned_upload_url
+from app.core.aws import (
+    generate_presigned_upload_url,
+    generate_presigned_download_url,
+)
 from app.core.config import settings
 
 
@@ -37,3 +41,50 @@ def create_file_upload(
     )
 
     return file, upload_url
+
+
+def list_user_files(*, db: Session, owner_id):
+    return (
+        db.query(File)
+        .filter(
+            File.owner_id == owner_id,
+            File.is_deleted == False,
+        )
+        .order_by(File.created_at.desc())
+        .all()
+    )
+
+
+def get_file_download_url(
+    *,
+    db: Session,
+    file_id,
+    requester_id,
+):
+    file = (
+        db.query(File)
+        .filter(
+            File.id == file_id,
+            File.is_deleted == False,
+        )
+        .first()
+    )
+
+    if not file:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
+
+    if file.owner_id != requester_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this file",
+        )
+
+    download_url = generate_presigned_download_url(
+        bucket=settings.AWS_S3_BUCKET,
+        key=file.s3_key,
+    )
+
+    return download_url
