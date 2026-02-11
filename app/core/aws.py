@@ -89,3 +89,5 @@ def s3_object_exists(*, bucket: str, key: str) -> bool:
         if e.response["Error"]["Code"] in ("404", "NoSuchKey"):
             return False
         raise
+
+
