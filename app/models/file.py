@@ -1,5 +1,6 @@
-import uuid
+import uuid , enum
 from datetime import datetime
+from sqlalchemy import Enum , Column 
 
 from sqlalchemy import (
     Column,
@@ -13,6 +14,12 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.core.db import Base
+
+
+class FileStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    ACTIVE = "ACTIVE"
+    FAILED = "FAILED"
 
 
 class File(Base):
@@ -37,3 +44,14 @@ class File(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     owner = relationship("User", backref="files")
+
+    status = Column(
+        Enum(FileStatus, name="file_status"),
+        nullable=False,
+        default=FileStatus.PENDING,
+    )  
+
+
+
+
+

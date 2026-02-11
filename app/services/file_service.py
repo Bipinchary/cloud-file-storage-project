@@ -1,6 +1,9 @@
 import uuid
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
+from app.core.aws import s3_object_exists
+from app.core.config import settings
+from app.models.file import FileStatus
 
 from app.models import File
 from app.core.aws import (
@@ -88,3 +91,29 @@ def get_file_download_url(
     )
 
     return download_url
+
+
+def confirm_file_upload(*, db, file, current_user):
+    if file.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    if file.status == FileStatus.ACTIVE:
+        return file  # idempotent
+
+    exists = s3_object_exists(
+        bucket=settings.AWS_S3_BUCKET,
+        key=file.s3_key,
+    )
+
+    if not exists:
+        file.status = FileStatus.FAILED
+        db.commit()
+        raise HTTPException(
+            status_code=400,
+            detail="File not found in S3",
+        )
+
+    file.status = FileStatus.ACTIVE
+    db.commit()
+    db.refresh(file)
+    return file

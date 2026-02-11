@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends , HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
@@ -7,9 +7,9 @@ from app.services.file_service import list_user_files, get_file_download_url
 
 from app.core.db import get_db
 from app.core.auth import get_current_user
-from app.models import User
+from app.models import User , File
 from app.schemas.file_schema import FileUploadRequest, FileUploadResponse
-from app.services.file_service import create_file_upload
+from app.services.file_service import create_file_upload , confirm_file_upload
 
 router = APIRouter(prefix="/files", tags=["Files"])
 
@@ -57,3 +57,25 @@ def download_file(
     )
 
     return {"download_url": download_url}
+
+
+@router.post("/{file_id}/confirm")
+def confirm_upload(
+    file_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    file = db.query(File).filter(File.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file = confirm_file_upload(
+        db=db,
+        file=file,
+        current_user=current_user,
+    )
+
+    return {
+        "id": str(file.id),
+        "status": file.status,
+    }

@@ -1,9 +1,8 @@
-
-
-
 import boto3
 from botocore.config import Config
 from app.core.config import settings
+
+from botocore.exceptions import ClientError
 
 # Advanced configuration to prevent Signature and Redirection errors
 s3_config = Config(
@@ -79,3 +78,14 @@ def generate_presigned_download_url(
         },
         ExpiresIn=expires_in,
     )
+
+
+def s3_object_exists(*, bucket: str, key: str) -> bool:
+    s3 = s3_client
+    try:
+        s3.head_object(Bucket=bucket, Key=key)
+        return True
+    except ClientError as e:
+        if e.response["Error"]["Code"] in ("404", "NoSuchKey"):
+            return False
+        raise
