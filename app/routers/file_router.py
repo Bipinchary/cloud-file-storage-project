@@ -1,18 +1,29 @@
-from fastapi import APIRouter, Depends , HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
-from app.schemas.file_schema import FileResponse
-from app.services.file_service import list_user_files, get_file_download_url
 
 from app.core.db import get_db
 from app.core.auth import get_current_user
-from app.models import User , File
-from app.schemas.file_schema import FileUploadRequest, FileUploadResponse
-from app.services.file_service import create_file_upload , confirm_file_upload
+from app.models import User, File
+from app.schemas.file_schema import (
+    FileUploadRequest,
+    FileUploadResponse,
+    FileResponse,
+)
+from app.services.file_service import (
+    create_file_upload,
+    confirm_file_upload,
+    list_user_files,
+    get_file_download_url,
+)
 
 router = APIRouter(prefix="/files", tags=["Files"])
 
+
+# =====================================================
+# 1️⃣ Generate Upload URL (Protected)
+# =====================================================
 
 @router.post("/upload-url", response_model=FileUploadResponse)
 def get_upload_url(
@@ -33,16 +44,52 @@ def get_upload_url(
         "upload_url": upload_url,
     }
 
+
+# =====================================================
+# 2️⃣ Confirm Upload (Verify S3)
+# =====================================================
+
+@router.post("/{file_id}/confirm")
+def confirm_upload(
+    file_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    file = db.query(File).filter(File.id == file_id).first()
+
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    verified_file = confirm_file_upload(
+        db=db,
+        file=file,
+        current_user=current_user,
+    )
+
+    return {
+        "id": str(verified_file.id),
+        "status": verified_file.status,
+    }
+
+
+# =====================================================
+# 3️⃣ List My Files
+# =====================================================
+
 @router.get("/", response_model=List[FileResponse])
 def list_files(
     db: Session = Depends(get_db),
-    current_user:User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     return list_user_files(
         db=db,
-        owner_id = current_user.id,
+        owner_id=current_user.id,
     )
 
+
+# =====================================================
+# 4️⃣ Download File (Presigned GET)
+# =====================================================
 
 @router.get("/{file_id}/download")
 def download_file(
@@ -56,26 +103,6 @@ def download_file(
         requester_id=current_user.id,
     )
 
-    return {"download_url": download_url}
-
-
-@router.post("/{file_id}/confirm")
-def confirm_upload(
-    file_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    file = db.query(File).filter(File.id == file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
-
-    file = confirm_file_upload(
-        db=db,
-        file=file,
-        current_user=current_user,
-    )
-
     return {
-        "id": str(file.id),
-        "status": file.status,
+        "download_url": download_url,
     }
