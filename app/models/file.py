@@ -1,4 +1,4 @@
-import uuid , enum
+import uuid , enum 
 from datetime import datetime
 from sqlalchemy import Enum , Column 
 
@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     Boolean,
     ForeignKey,
+    Index,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -51,7 +52,19 @@ class File(Base):
         default=FileStatus.PENDING,
     )  
 
+     # -------------------------
+    # Relationships
+    # -------------------------
 
+    owner = relationship("User", back_populates="files")
 
+    # -------------------------
+    # Indexes
+    # -------------------------
 
+    __table_args__ = (
+        Index("ix_files_owner_id", "owner_id"),
+    )
+
+   
 

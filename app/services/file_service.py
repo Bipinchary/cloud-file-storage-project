@@ -13,9 +13,7 @@ from app.core.aws import (
 from app.core.config import settings
 
 
-# =====================================================
-# 1️⃣ CREATE UPLOAD (PRESIGNED PUT)
-# =====================================================
+
 
 def create_file_upload(
     *,
@@ -52,9 +50,9 @@ def create_file_upload(
     return file, upload_url
 
 
-# =====================================================
-# 2️⃣ CONFIRM UPLOAD (S3 HEAD CHECK)
-# =====================================================
+
+# CONFIRM UPLOAD (S3 HEAD CHECK)
+
 
 def confirm_file_upload(
     *,
@@ -64,36 +62,41 @@ def confirm_file_upload(
 ):
     # Ownership check
     if file.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Forbidden")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
     # Idempotent behavior
     if file.status == FileStatus.ACTIVE:
         return file
 
-    # Check if object exists in S3
+    # Check if object exists in S3 (Optionally verify size here)
     exists = s3_object_exists(
         bucket=settings.AWS_S3_BUCKET,
         key=file.s3_key,
     )
 
     if not exists:
-        file.status = FileStatus.FAILED
-        db.commit()
+        # We don't necessarily want to mark it FAILED immediately 
+        # because the user might just be calling confirm too early.
         raise HTTPException(
-            status_code=400,
-            detail="File not found in S3",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File not found in S3. Please ensure upload is complete.",
         )
 
-    file.status = FileStatus.ACTIVE
-    db.commit()
-    db.refresh(file)
+    try:
+        file.status = FileStatus.ACTIVE
+        db.add(file)
+        db.commit()
+        db.refresh(file)
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error during confirmation")
 
     return file
 
 
-# =====================================================
-# 3️⃣ LIST USER FILES
-# =====================================================
+
+#  LIST USER FILES
+
 
 def list_user_files(
     *,
@@ -111,9 +114,9 @@ def list_user_files(
     )
 
 
-# =====================================================
-# 4️⃣ DOWNLOAD (PRESIGNED GET)
-# =====================================================
+
+#  DOWNLOAD (PRESIGNED GET)
+
 
 def get_file_download_url(
     *,

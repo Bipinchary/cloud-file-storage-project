@@ -21,10 +21,6 @@ from app.services.file_service import (
 router = APIRouter(prefix="/files", tags=["Files"])
 
 
-# =====================================================
-# 1️⃣ Generate Upload URL (Protected)
-# =====================================================
-
 @router.post("/upload-url", response_model=FileUploadResponse)
 def get_upload_url(
     payload: FileUploadRequest,
@@ -45,25 +41,17 @@ def get_upload_url(
     }
 
 
-# =====================================================
-# 2️⃣ Confirm Upload (Verify S3)
-# =====================================================
-
 @router.post("/{file_id}/confirm")
 def confirm_upload(
     file_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    file = db.query(File).filter(File.id == file_id).first()
-
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
 
     verified_file = confirm_file_upload(
         db=db,
-        file=file,
-        current_user=current_user,
+        file_id=file_id,
+        user_id=current_user.id,
     )
 
     return {
@@ -72,9 +60,6 @@ def confirm_upload(
     }
 
 
-# =====================================================
-# 3️⃣ List My Files
-# =====================================================
 
 @router.get("/", response_model=List[FileResponse])
 def list_files(
@@ -87,9 +72,7 @@ def list_files(
     )
 
 
-# =====================================================
-# 4️⃣ Download File (Presigned GET)
-# =====================================================
+
 
 @router.get("/{file_id}/download")
 def download_file(

@@ -18,39 +18,7 @@ s3_client = boto3.client(
     aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
     config=s3_config
 )
-'''s3_client = boto3.client(
-    "s3",
-    region_name=settings.AWS_REGION,
-    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-)'''
 
-
-''' def generate_presigned_upload_url(
-    *, bucket: str, key: str, content_type: str, expires_in: int = 300
-) -> str:
-    return s3_client.generate_presigned_url(
-        ClientMethod="put_object",
-        Params={
-            "Bucket": bucket,
-            "Key": key,
-            "ContentType": content_type,
-        },
-        ExpiresIn=expires_in,
-    )
-
-
-def generate_presigned_download_url(
-    *, bucket: str, key: str, expires_in: int = 300
-) -> str:
-    return s3_client.generate_presigned_url(
-        ClientMethod="get_object",
-        Params={
-            "Bucket": bucket,
-            "Key": key,
-        },
-        ExpiresIn=expires_in,
-    ) '''
 
 def generate_presigned_upload_url(
     *, bucket: str, key: str, content_type: str, expires_in: int = 900
