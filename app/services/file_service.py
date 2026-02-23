@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from uuid import UUID
 
-from app.models import File
+
+from app.models import File , User
 from app.models.file import FileStatus
 from app.core.aws import (
     generate_presigned_upload_url,
@@ -53,30 +54,37 @@ def create_file_upload(
 
 # CONFIRM UPLOAD (S3 HEAD CHECK)
 
-
 def confirm_file_upload(
     *,
     db: Session,
-    file: File,
-    current_user,
+    file_id: UUID,
+    current_user: User,
 ):
+    file = db.query(File).filter(File.id == file_id).first()
+
+    if not file:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
+
     # Ownership check
     if file.owner_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden",
+        )
 
     # Idempotent behavior
     if file.status == FileStatus.ACTIVE:
         return file
 
-    # Check if object exists in S3 (Optionally verify size here)
     exists = s3_object_exists(
         bucket=settings.AWS_S3_BUCKET,
         key=file.s3_key,
     )
 
     if not exists:
-        # We don't necessarily want to mark it FAILED immediately 
-        # because the user might just be calling confirm too early.
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File not found in S3. Please ensure upload is complete.",
@@ -84,12 +92,14 @@ def confirm_file_upload(
 
     try:
         file.status = FileStatus.ACTIVE
-        db.add(file)
         db.commit()
         db.refresh(file)
     except Exception:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Database error during confirmation")
+        raise HTTPException(
+            status_code=500,
+            detail="Database error during confirmation",
+        )
 
     return file
 

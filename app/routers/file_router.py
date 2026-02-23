@@ -40,25 +40,22 @@ def get_upload_url(
         "upload_url": upload_url,
     }
 
-
 @router.post("/{file_id}/confirm")
 def confirm_upload(
     file_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-
     verified_file = confirm_file_upload(
         db=db,
         file_id=file_id,
-        user_id=current_user.id,
+        current_user=current_user,
     )
 
     return {
         "id": str(verified_file.id),
         "status": verified_file.status,
     }
-
 
 
 @router.get("/", response_model=List[FileResponse])
