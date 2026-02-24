@@ -162,3 +162,30 @@ def get_file_download_url(
     )
 
     return download_url
+
+def soft_delete_file(*, db: Session , file_id , requester_id,):
+    file = (
+        db.query(File)
+        .filter(File.id==file_id)
+        .first()
+    )
+
+    if not file:
+        raise HTTPException(
+            status_code=404, 
+            detail= "file not found",
+        )
+    
+    if file.owner_id != requester_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden",
+        )
+    
+    if file.is_deleted:
+        return file
+    
+    file.is_deleted = True
+    db.commit()
+    db.refresh(file)
+    return file

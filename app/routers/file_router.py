@@ -16,6 +16,7 @@ from app.services.file_service import (
     confirm_file_upload,
     list_user_files,
     get_file_download_url,
+    soft_delete_file,
 )
 
 router = APIRouter(prefix="/files", tags=["Files"])
@@ -85,4 +86,21 @@ def download_file(
 
     return {
         "download_url": download_url,
+    }
+
+@router.delete("/{file_id}")
+def delete_file(
+    file_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    file = soft_delete_file(
+        db = db,
+        file_id = file_id,
+        requester_id=current_user.id,
+    )
+
+    return {
+        "id": str(file.id),
+        "deleted": file.is_deleted,  
     }
